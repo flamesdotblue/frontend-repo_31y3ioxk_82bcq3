@@ -1,7 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Spline from '@splinetool/react-spline';
 import { MotionConfig, motion, useScroll, useTransform } from 'framer-motion';
 import { Waves, Cpu, Bell, Eye, Power, Battery, MapPin, Mic, Bluetooth } from 'lucide-react';
+
+// Simple error boundary to gracefully handle Spline load errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch() {
+    if (typeof this.props.onFail === 'function') this.props.onFail();
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? null;
+    }
+    return this.props.children;
+  }
+}
 
 const hotspots = [
   {
@@ -103,9 +123,9 @@ export default function Hero3DShowcase() {
 
   const InfoIcon = active?.icon ?? Power;
 
-  // Use a known-working public Spline scene for reliability
+  // Use the provided, known-working Spline scene
   const sceneUrl = useMemo(
-    () => 'https://prod.spline.design/5hwfG5bA3FfMFGhx/scene.splinecode',
+    () => 'https://prod.spline.design/EF7JOSsHLk16Tlw9/scene.splinecode',
     []
   );
 
@@ -116,6 +136,18 @@ export default function Hero3DShowcase() {
     }, 8000);
     return () => clearTimeout(t);
   }, [isLoaded]);
+
+  const FallbackView = (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="text-center">
+        <div className="mx-auto h-16 w-16 rounded-full bg-indigo-600/10 flex items-center justify-center">
+          <Eye className="text-indigo-600" size={22} />
+        </div>
+        <p className="mt-3 text-slate-700 dark:text-slate-300 font-medium">Interactive 3D preview unavailable</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">Please refresh or try again later.</p>
+      </div>
+    </div>
+  );
 
   return (
     <MotionConfig reducedMotion="user">
@@ -177,21 +209,15 @@ export default function Hero3DShowcase() {
           {/* Right: 3D viewer with hotspots */}
           <div className="relative h-[70vh] min-h-[460px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
             {!failed ? (
-              <Spline
-                scene={sceneUrl}
-                onLoad={() => setIsLoaded(true)}
-                style={{ width: '100%', height: '100%' }}
-              />
+              <ErrorBoundary onFail={() => setFailed(true)} fallback={FallbackView}>
+                <Spline
+                  scene={sceneUrl}
+                  onLoad={() => setIsLoaded(true)}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </ErrorBoundary>
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-                <div className="text-center">
-                  <div className="mx-auto h-16 w-16 rounded-full bg-indigo-600/10 flex items-center justify-center">
-                    <Eye className="text-indigo-600" size={22} />
-                  </div>
-                  <p className="mt-3 text-slate-700 dark:text-slate-300 font-medium">Interactive 3D preview unavailable</p>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Please refresh or try again later.</p>
-                </div>
-              </div>
+              FallbackView
             )}
 
             {/* Ambient gradient overlay (non-blocking) */}
