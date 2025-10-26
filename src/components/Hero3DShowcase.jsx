@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Spline from '@splinetool/react-spline';
 import { MotionConfig, motion, useScroll, useTransform } from 'framer-motion';
 import { Waves, Cpu, Bell, Eye, Power, Battery, MapPin, Mic, Bluetooth } from 'lucide-react';
@@ -96,17 +96,26 @@ const hotspots = [
 
 export default function Hero3DShowcase() {
   const [active, setActive] = useState(hotspots[1]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -120]);
 
   const InfoIcon = active?.icon ?? Power;
 
+  // Use a known-working public Spline scene for reliability
   const sceneUrl = useMemo(
-    () =>
-      // Public scene URL used for demonstration. Replace with your blind-stick model when available.
-      'https://prod.spline.design/6Yw6T6ZRdOu1jPFM/scene.splinecode',
+    () => 'https://prod.spline.design/5hwfG5bA3FfMFGhx/scene.splinecode',
     []
   );
+
+  // Fallback: if the scene hasn't loaded after 8s, show an illustration instead
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!isLoaded) setFailed(true);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [isLoaded]);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -166,11 +175,34 @@ export default function Hero3DShowcase() {
           </div>
 
           {/* Right: 3D viewer with hotspots */}
-          <div className="relative h-[70vh] min-h-[460px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/40">
-            <Spline scene={sceneUrl} style={{ width: '100%', height: '100%' }} />
+          <div className="relative h-[70vh] min-h-[460px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+            {!failed ? (
+              <Spline
+                scene={sceneUrl}
+                onLoad={() => setIsLoaded(true)}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                <div className="text-center">
+                  <div className="mx-auto h-16 w-16 rounded-full bg-indigo-600/10 flex items-center justify-center">
+                    <Eye className="text-indigo-600" size={22} />
+                  </div>
+                  <p className="mt-3 text-slate-700 dark:text-slate-300 font-medium">Interactive 3D preview unavailable</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Please refresh or try again later.</p>
+                </div>
+              </div>
+            )}
 
             {/* Ambient gradient overlay (non-blocking) */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent dark:from-black/30" />
+
+            {/* Loading shimmer over canvas until ready */}
+            {!isLoaded && !failed && (
+              <div className="pointer-events-none absolute inset-0">
+                <div className="h-full w-full animate-pulse bg-gradient-to-br from-slate-100/60 to-slate-50/40 dark:from-slate-800/40 dark:to-slate-900/30" />
+              </div>
+            )}
 
             {/* Hotspots */}
             {hotspots.map((h) => (
